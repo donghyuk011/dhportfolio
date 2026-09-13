@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test:unit": "node --test tests/github-publisher.test.mjs",
+    "test:unit": "node --test tests/*.test.mjs",
     "test:e2e": "playwright test"
   },
   "engines": {
@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "5.3.0",
+    "@supabase/supabase-js": "^2.116.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-router-dom": "7.18.3"

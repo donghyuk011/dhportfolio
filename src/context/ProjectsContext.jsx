@@ -1,10 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { publishPortfolio } from "../lib/githubPublisher";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { extensionFor, rowsToProjects } from "../lib/projectCloud";
+import { ADMIN_EMAIL, supabase } from "../lib/supabase";
 
 const ProjectsContext = createContext(null);
 const DATABASE_NAME = "donghyuk-portfolio";
 const STORE_NAME = "content";
 const PROJECTS_KEY = "projects";
+const STORAGE_BUCKET = "portfolio";
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -32,11 +34,11 @@ async function readLocalProjects() {
   });
 }
 
-async function writeLocalProjects(projects, dirty) {
+async function clearLocalProjects() {
   const database = await openDatabase();
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).put({ projects, dirty }, PROJECTS_KEY);
+    transaction.objectStore(STORE_NAME).put({ projects: [], dirty: false }, PROJECTS_KEY);
     transaction.oncomplete = () => { database.close(); resolve(); };
     transaction.onerror = () => reject(transaction.error);
   });
@@ -70,54 +72,136 @@ function makeSlug(title) {
   return `${readable || "project"}-${Date.now().toString(36)}`;
 }
 
+async function uploadDataUrl(dataUrl, pathPrefix) {
+  if (!dataUrl?.startsWith("data:")) return dataUrl;
+  const blob = await (await fetch(dataUrl)).blob();
+  const path = `${pathPrefix}.${extensionFor(blob.type)}`;
+  const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, blob, {
+    cacheControl: "3600",
+    contentType: blob.type,
+    upsert: true,
+  });
+  if (error) throw error;
+  return supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+async function prepareProjectForCloud(project, order) {
+  const id = project.id || crypto.randomUUID();
+  const thumbnail = await uploadDataUrl(project.thumbnail, `${id}/cover`);
+  const images = await Promise.all((project.images || []).map(async (image, index) => ({
+    ...image,
+    src: await uploadDataUrl(image.src, `${id}/gallery-${index + 1}`),
+  })));
+  const content = { ...project, id, thumbnail, images };
+  return { id, content, sort_order: order };
+}
+
 export function ProjectsProvider({ children }) {
   const [projects, setProjects] = useState([]);
+  const [localDrafts, setLocalDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [session, setSession] = useState(null);
   const [managerOpen, setManagerOpen] = useState(false);
-  const [hasLocalChanges, setHasLocalChanges] = useState(false);
+
+  const loadProjects = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("projects")
+      .select("id, content, sort_order, created_at")
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    const nextProjects = rowsToProjects(data);
+    setProjects(nextProjects);
+    return nextProjects;
+  }, []);
 
   useEffect(() => {
     let current = true;
     (async () => {
-      let local = null;
       try {
-        local = await readLocalProjects();
-        const response = await fetch(`${import.meta.env.BASE_URL}portfolio-data.json`, { cache: "no-store" });
-        const published = response.ok ? await response.json() : [];
-        const publishedProjects = Array.isArray(published) ? published : [];
-        const useLocalDraft = Boolean(local?.dirty && Array.isArray(local.projects));
-        const initialProjects = useLocalDraft ? local.projects : publishedProjects;
-        if (current) {
-          setProjects(initialProjects);
-          setHasLocalChanges(useLocalDraft);
-        }
-        if (!useLocalDraft) await writeLocalProjects(publishedProjects, false);
+        const [local, authResult] = await Promise.all([
+          readLocalProjects().catch(() => null),
+          supabase.auth.getSession(),
+        ]);
+        if (!current) return;
+        if (local?.dirty && Array.isArray(local.projects)) setLocalDrafts(local.projects);
+        setSession(authResult.data.session);
+        await loadProjects();
       } catch {
-        if (current) {
-          setProjects(Array.isArray(local?.projects) ? local.projects : []);
-          setHasLocalChanges(Boolean(local?.dirty));
+        try {
+          const response = await fetch(`${import.meta.env.BASE_URL}portfolio-data.json`, { cache: "no-store" });
+          const published = response.ok ? await response.json() : [];
+          if (current) setProjects(Array.isArray(published) ? published : []);
+        } catch {
+          if (current) setProjects([]);
         }
       } finally {
-        if (current) setLoading(false);
+        if (current) {
+          setLoading(false);
+          setAuthLoading(false);
+        }
       }
     })();
-    return () => { current = false; };
-  }, []);
 
-  async function commit(nextProjects, dirty = true) {
-    setProjects(nextProjects);
-    setHasLocalChanges(dirty);
-    await writeLocalProjects(nextProjects, dirty);
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (current) {
+        setSession(nextSession);
+        setAuthLoading(false);
+      }
+    });
+    const channel = supabase
+      .channel("public-projects")
+      .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, () => {
+        loadProjects().catch(() => {});
+      })
+      .subscribe();
+
+    return () => {
+      current = false;
+      authListener.subscription.unsubscribe();
+      supabase.removeChannel(channel);
+    };
+  }, [loadProjects]);
+
+  const isAdmin = session?.user?.email?.toLowerCase() === ADMIN_EMAIL;
+
+  function assertAdmin() {
+    if (!isAdmin) throw new Error("관리자 로그인이 필요합니다.");
+  }
+
+  async function signIn() {
+    const emailRedirectTo = `${window.location.origin}${window.location.pathname}`;
+    const { error } = await supabase.auth.signInWithOtp({
+      email: ADMIN_EMAIL,
+      options: { emailRedirectTo, shouldCreateUser: true },
+    });
+    if (error) throw error;
+  }
+
+  async function signOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  }
+
+  async function saveCloudProject(project, order = projects.length) {
+    assertAdmin();
+    const row = await prepareProjectForCloud(project, order);
+    const { error } = await supabase.from("projects").upsert(row);
+    if (error) throw error;
+    await loadProjects();
+    return row.content;
   }
 
   async function addProject(values, coverFile, galleryFiles) {
+    assertAdmin();
     const thumbnail = await optimizeImage(coverFile);
     const gallery = await Promise.all(galleryFiles.slice(0, 6).map(async (file, index) => ({
       src: await optimizeImage(file),
       alt: `${values.title} 프로젝트 이미지 ${index + 1}`,
       caption: `${String(index + 1).padStart(2, "0")} / ${values.title}`,
     })));
-    const project = {
+    return saveCloudProject({
       id: crypto.randomUUID(),
       slug: makeSlug(values.title),
       title: values.title.trim(),
@@ -136,21 +220,48 @@ export function ProjectsProvider({ children }) {
       solution: values.solution.trim(),
       result: values.result.trim(),
       images: gallery,
-    };
-    await commit([...projects, project]);
-    return project;
+    });
   }
 
-  async function removeProject(id) { await commit(projects.filter((project) => project.id !== id)); }
+  async function removeProject(id) {
+    assertAdmin();
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (error) throw error;
+    setProjects((current) => current.filter((project) => project.id !== id));
+    const { data: files } = await supabase.storage.from(STORAGE_BUCKET).list(id);
+    if (files?.length) await supabase.storage.from(STORAGE_BUCKET).remove(files.map((file) => `${id}/${file.name}`));
+  }
+
   async function replaceProjects(nextProjects) {
+    assertAdmin();
     if (!Array.isArray(nextProjects)) throw new Error("올바른 포트폴리오 데이터가 아닙니다.");
-    await commit(nextProjects);
+    const prepared = [];
+    for (let index = 0; index < nextProjects.length; index += 1) {
+      prepared.push(await prepareProjectForCloud(nextProjects[index], index));
+    }
+    if (prepared.length) {
+      const { error } = await supabase.from("projects").upsert(prepared);
+      if (error) throw error;
+    }
+    const keepIds = new Set(prepared.map((row) => row.id));
+    const removedIds = projects.map((project) => project.id).filter((id) => !keepIds.has(id));
+    if (removedIds.length) {
+      const { error } = await supabase.from("projects").delete().in("id", removedIds);
+      if (error) throw error;
+    }
+    await loadProjects();
   }
-  async function publishProjects(token, onProgress) {
-    const published = await publishPortfolio(projects, token, onProgress);
-    await commit(published, false);
-    return published;
+
+  async function migrateLocalDrafts() {
+    assertAdmin();
+    for (let index = 0; index < localDrafts.length; index += 1) {
+      await saveCloudProject(localDrafts[index], projects.length + index);
+    }
+    await clearLocalProjects();
+    setLocalDrafts([]);
+    await loadProjects();
   }
+
   function exportProjects() {
     const blob = new Blob([JSON.stringify(projects, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -162,11 +273,24 @@ export function ProjectsProvider({ children }) {
   }
 
   const value = useMemo(() => ({
-    projects, loading, managerOpen,
+    projects,
+    localDrafts,
+    loading,
+    authLoading,
+    session,
+    isAdmin,
+    managerOpen,
     openManager: () => setManagerOpen(true),
     closeManager: () => setManagerOpen(false),
-    addProject, removeProject, replaceProjects, exportProjects, publishProjects, hasLocalChanges,
-  }), [projects, loading, managerOpen, hasLocalChanges]);
+    signIn,
+    signOut,
+    addProject,
+    removeProject,
+    replaceProjects,
+    migrateLocalDrafts,
+    exportProjects,
+  }), [projects, localDrafts, loading, authLoading, session, isAdmin, managerOpen]);
+
   return <ProjectsContext.Provider value={value}>{children}</ProjectsContext.Provider>;
 }
 
