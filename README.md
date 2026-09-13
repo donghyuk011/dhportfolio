@@ -34,24 +34,28 @@ npm run preview
 
 이미지는 브라우저에서 긴 쪽을 최대 1800px로 줄이고 WebP로 변환합니다. SVG와 GIF는 원본 형식을 유지합니다. 한 장당 최대 크기는 12MB입니다.
 
-### 저장 방식
+### 모든 기기에 작품 게시하기
 
-사이트에서 올린 작품은 먼저 현재 브라우저의 IndexedDB에 저장됩니다. 같은 브라우저에서는 새로고침하거나 다시 접속해도 유지됩니다. 다른 컴퓨터나 다른 브라우저에는 자동으로 전달되지 않습니다.
+사이트에서 올린 작품은 작성 중 내용이 사라지지 않도록 현재 브라우저의 IndexedDB에 임시 저장됩니다. 입력을 마치면 작품 관리 화면 아래의 **GitHub에 게시하기 ↑**로 공개할 수 있습니다.
 
-GitHub Pages는 서버가 없는 정적 호스팅이므로 웹페이지가 GitHub 저장소에 직접 파일을 쓸 수 없습니다. 공개 사이트에 영구 반영하려면 다음 과정을 한 번 더 진행합니다.
+처음 한 번만 GitHub Fine-grained personal access token을 준비합니다.
 
-1. 작품 관리 화면 아래의 **배포 파일 받기 ↓**를 누릅니다.
-2. 내려받은 `portfolio-data.json`을 이 프로젝트의 `public/portfolio-data.json`과 교체합니다.
-3. 변경 내용을 GitHub 저장소의 `main` 브랜치에 push합니다.
-4. GitHub Actions가 자동으로 빌드하고 Pages에 배포합니다.
+1. 작품 관리의 **처음 게시할 때 필요한 설정**을 엽니다.
+2. 안내 링크에서 Repository access를 **Only select repositories → dhportfolio**로 지정합니다.
+3. Repository permissions의 **Contents**만 **Read and write**로 설정합니다.
+4. 발급된 토큰을 입력하고 **GitHub에 게시하기 ↑**를 누릅니다.
 
-새 방문자는 배포된 `portfolio-data.json`의 작품을 보게 됩니다. 사이트의 **백업 불러오기**에서 내려받은 JSON을 다시 불러올 수도 있습니다.
+게시할 때 이미지 파일과 `public/portfolio-data.json`을 하나의 Git 커밋으로 저장하고 GitHub Actions가 자동 배포합니다. 약 1분 뒤 새 방문자와 다른 기기에서도 같은 작품을 볼 수 있습니다. 토큰은 React 상태에서 요청에만 사용하며 IndexedDB, localStorage, 저장소에 보관하지 않습니다.
 
-이미지가 많으면 JSON 파일도 커집니다. 실제 공개용으로는 필요한 이미지만 선택하고, 긴 쪽 1800px 이하의 JPG·PNG·WebP를 권장합니다.
+**백업 파일 받기 ↓**와 **백업 불러오기**로 수동 백업과 복원도 가능합니다.
 
 ## 작품 삭제
 
-작품 관리 화면의 저장된 작품 목록에서 **삭제**를 누릅니다. 삭제도 현재 브라우저에 먼저 적용됩니다. 공개 사이트에서도 삭제하려면 다시 **배포 파일 받기 ↓**를 실행하여 `public/portfolio-data.json`을 교체한 뒤 push합니다.
+작품 관리 화면의 저장된 작품 목록에서 **삭제**를 누릅니다. 삭제는 현재 브라우저의 초안에 먼저 적용되며, **GitHub에 게시하기 ↑**를 눌러야 모든 기기의 공개 사이트에서도 사라집니다.
+
+## 모바일 UI
+
+화면 폭 700px 이하에서는 홈·작품·업로드·소개·연락처를 담은 하단 빠른 메뉴가 나타납니다. 작품 관리 화면은 전체 화면 편집기로 바뀌고 입력 요소는 모바일 브라우저의 자동 확대를 막는 16px 글자 크기를 사용합니다. 하단 안전 영역과 320px 폭까지의 가로 넘침을 지원합니다.
 
 ## 개인정보 수정
 
@@ -95,8 +99,10 @@ Vite 경로는 Actions에서 실제 Pages 하위 경로를 자동으로 전달�
 
 ```text
 public/portfolio-data.json        공개 사이트의 작품 데이터
-src/context/ProjectsContext.jsx   업로드, 이미지 최적화, 브라우저 저장
+src/context/ProjectsContext.jsx   업로드, 이미지 최적화, 초안과 공개 데이터 동기화
 src/components/ProjectManager.jsx 작품 관리 화면
+src/components/MobileNav.jsx      모바일 하단 빠른 메뉴
+src/lib/githubPublisher.js        GitHub 저장소 게시
 src/components/EmptyPortfolio.jsx 빈 작품 상태
 src/data/profile.js               이름, 소개, 연락처, 경력
 src/styles/global.css             전체 디자인과 반응형 스타일

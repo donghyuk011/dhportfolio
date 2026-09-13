@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { publishPortfolio } from "../lib/githubPublisher";
 
 const ProjectsContext = createContext(null);
 const DATABASE_NAME = "donghyuk-portfolio";
@@ -21,17 +22,21 @@ async function readLocalProjects() {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, "readonly");
     const request = transaction.objectStore(STORE_NAME).get(PROJECTS_KEY);
-    request.onsuccess = () => resolve(request.result ?? null);
+    request.onsuccess = () => {
+      const saved = request.result;
+      if (Array.isArray(saved)) resolve({ projects: saved, dirty: saved.length > 0 });
+      else resolve(saved ?? null);
+    };
     request.onerror = () => reject(request.error);
     transaction.oncomplete = () => database.close();
   });
 }
 
-async function writeLocalProjects(projects) {
+async function writeLocalProjects(projects, dirty) {
   const database = await openDatabase();
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).put(projects, PROJECTS_KEY);
+    transaction.objectStore(STORE_NAME).put({ projects, dirty }, PROJECTS_KEY);
     transaction.oncomplete = () => { database.close(); resolve(); };
     transaction.onerror = () => reject(transaction.error);
   });
@@ -69,21 +74,29 @@ export function ProjectsProvider({ children }) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [managerOpen, setManagerOpen] = useState(false);
+  const [hasLocalChanges, setHasLocalChanges] = useState(false);
 
   useEffect(() => {
     let current = true;
     (async () => {
+      let local = null;
       try {
-        const local = await readLocalProjects();
-        if (local !== null) {
-          if (current) setProjects(local);
-          return;
-        }
-        const response = await fetch(`${import.meta.env.BASE_URL}portfolio-data.json`);
+        local = await readLocalProjects();
+        const response = await fetch(`${import.meta.env.BASE_URL}portfolio-data.json`, { cache: "no-store" });
         const published = response.ok ? await response.json() : [];
-        if (current) setProjects(Array.isArray(published) ? published : []);
+        const publishedProjects = Array.isArray(published) ? published : [];
+        const useLocalDraft = Boolean(local?.dirty && Array.isArray(local.projects));
+        const initialProjects = useLocalDraft ? local.projects : publishedProjects;
+        if (current) {
+          setProjects(initialProjects);
+          setHasLocalChanges(useLocalDraft);
+        }
+        if (!useLocalDraft) await writeLocalProjects(publishedProjects, false);
       } catch {
-        if (current) setProjects([]);
+        if (current) {
+          setProjects(Array.isArray(local?.projects) ? local.projects : []);
+          setHasLocalChanges(Boolean(local?.dirty));
+        }
       } finally {
         if (current) setLoading(false);
       }
@@ -91,9 +104,10 @@ export function ProjectsProvider({ children }) {
     return () => { current = false; };
   }, []);
 
-  async function commit(nextProjects) {
+  async function commit(nextProjects, dirty = true) {
     setProjects(nextProjects);
-    await writeLocalProjects(nextProjects);
+    setHasLocalChanges(dirty);
+    await writeLocalProjects(nextProjects, dirty);
   }
 
   async function addProject(values, coverFile, galleryFiles) {
@@ -132,6 +146,11 @@ export function ProjectsProvider({ children }) {
     if (!Array.isArray(nextProjects)) throw new Error("올바른 포트폴리오 데이터가 아닙니다.");
     await commit(nextProjects);
   }
+  async function publishProjects(token, onProgress) {
+    const published = await publishPortfolio(projects, token, onProgress);
+    await commit(published, false);
+    return published;
+  }
   function exportProjects() {
     const blob = new Blob([JSON.stringify(projects, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -146,8 +165,8 @@ export function ProjectsProvider({ children }) {
     projects, loading, managerOpen,
     openManager: () => setManagerOpen(true),
     closeManager: () => setManagerOpen(false),
-    addProject, removeProject, replaceProjects, exportProjects,
-  }), [projects, loading, managerOpen]);
+    addProject, removeProject, replaceProjects, exportProjects, publishProjects, hasLocalChanges,
+  }), [projects, loading, managerOpen, hasLocalChanges]);
   return <ProjectsContext.Provider value={value}>{children}</ProjectsContext.Provider>;
 }
 

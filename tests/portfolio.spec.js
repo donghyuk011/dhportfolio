@@ -8,7 +8,7 @@ test("빈 포트폴리오, 한국어 화면과 연락처가 정확히 표시된�
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   await page.goto("./");
-  await expect(page).toHaveTitle("동혁 . 포트폴리오 — 디자이너 / 개발자");
+  await expect(page).toHaveTitle("동혁 . 포트폴리오 — 사이버보안 / 네트워크");
   await expect(page.getByRole("heading", { name: "포트폴리오." })).toBeVisible();
   await expect(page.getByText("아직 업로드된 작품이 없습니다.").first()).toBeVisible();
   await expect(page.locator(".project-row")).toHaveCount(0);
@@ -39,7 +39,7 @@ test("작품을 업로드하면 카드와 상세 페이지가 생기고 새로�
   await expect(page.getByText(/작품을 저장했습니다/)).toBeVisible();
   await expect(page.getByText("동네 연결 앱").first()).toBeVisible();
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "배포 파일 받기 ↓" }).click();
+  await page.getByRole("button", { name: "백업 파일 받기 ↓" }).click();
   expect((await download).suggestedFilename()).toBe("portfolio-data.json");
   await page.getByRole("button", { name: "작품 관리 닫기" }).click();
   await expect(page.getByRole("link", { name: "동네 연결 앱 작품 보기" })).toBeVisible();
@@ -55,6 +55,7 @@ test("작품을 업로드하면 카드와 상세 페이지가 생기고 새로�
 test("작품 삭제와 모바일 메뉴가 정상 작동한다", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./");
+  await expect(page.getByRole("navigation", { name: "모바일 빠른 메뉴" })).toBeVisible();
   await page.getByRole("button", { name: "메뉴 +" }).click();
   await expect(page.getByRole("button", { name: "작품 관리 ＋" })).toBeVisible();
   await page.getByRole("button", { name: "작품 관리 ＋" }).click();

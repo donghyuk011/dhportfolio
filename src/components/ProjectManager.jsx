@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useProjects } from "../context/ProjectsContext";
 import { assetUrl } from "../data/projects";
+import { githubRepositoryUrl } from "../lib/githubPublisher";
 
 const initialValues = {
   title: "",
@@ -19,13 +20,16 @@ const initialValues = {
 };
 
 export default function ProjectManager() {
-  const { projects, managerOpen, closeManager, addProject, removeProject, replaceProjects, exportProjects } = useProjects();
+  const { projects, managerOpen, closeManager, addProject, removeProject, replaceProjects, exportProjects, publishProjects, hasLocalChanges } = useProjects();
   const [values, setValues] = useState(initialValues);
   const [cover, setCover] = useState(null);
   const [gallery, setGallery] = useState([]);
   const [preview, setPreview] = useState("");
   const [busy, setBusy] = useState(false);
+  const [publishBusy, setPublishBusy] = useState(false);
+  const [githubToken, setGithubToken] = useState("");
   const [message, setMessage] = useState("");
+  const [publishMessage, setPublishMessage] = useState("");
   const panelRef = useRef(null);
 
   useEffect(() => {
@@ -76,6 +80,23 @@ export default function ProjectManager() {
     } catch { setMessage("portfolio-data.json 파일을 확인해 주세요."); }
     event.target.value = "";
   }
+  async function publish() {
+    setPublishMessage("");
+    if (!githubToken.trim()) {
+      setPublishMessage("저장소 전용 GitHub 토큰을 입력해 주세요.");
+      return;
+    }
+    setPublishBusy(true);
+    try {
+      const published = await publishProjects(githubToken, setPublishMessage);
+      setGithubToken("");
+      setPublishMessage(`${published.length}개의 작품을 GitHub에 게시했습니다. 약 1분 뒤 모든 기기에 반영됩니다.`);
+    } catch (error) {
+      setPublishMessage(error.message || "GitHub에 게시하지 못했습니다.");
+    } finally {
+      setPublishBusy(false);
+    }
+  }
 
   return (
     <div className="manager-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeManager(); }}>
@@ -85,7 +106,7 @@ export default function ProjectManager() {
           <button type="button" className="manager-close" onClick={closeManager} aria-label="작품 관리 닫기">닫기 ×</button>
         </div>
 
-        <p className="manager-note">여기서 올린 작품은 현재 브라우저에 먼저 저장됩니다. 공개 사이트에 반영하려면 아래의 “배포 파일 받기”를 사용하세요.</p>
+        <p className="manager-note">작품 저장은 이 기기의 임시 보관함에 먼저 반영됩니다. 모든 기기에서 보이게 하려면 마지막에 “GitHub에 게시하기”를 눌러주세요.</p>
 
         {projects.length > 0 && (
           <div className="manager-library">
@@ -133,10 +154,30 @@ export default function ProjectManager() {
         </form>
 
         <div className="publish-box">
-          <div><h3>공개 사이트에 반영하기</h3><p>작품을 모두 입력한 뒤 파일을 내려받아 프로젝트의 <code>public/portfolio-data.json</code>과 교체하고 GitHub에 push하세요.</p></div>
-          <div className="publish-actions">
-            <button type="button" onClick={exportProjects} disabled={!projects.length}>배포 파일 받기 ↓</button>
-            <label className="import-button">백업 불러오기<input type="file" accept="application/json,.json" onChange={importData} /></label>
+          <div className="publish-copy">
+            <span className={hasLocalChanges ? "publish-state is-draft" : "publish-state"}>{hasLocalChanges ? "게시 전 변경사항 있음" : "GitHub와 동기화됨"}</span>
+            <h3>모든 기기에 게시하기</h3>
+            <p>저장소 전용 토큰으로 작품 정보와 이미지를 <a href={githubRepositoryUrl} target="_blank" rel="noreferrer">dhportfolio 저장소 ↗</a>에 올립니다. 토큰은 현재 창에서만 사용하고 저장하지 않습니다.</p>
+            <details className="token-help">
+              <summary>처음 게시할 때 필요한 설정</summary>
+              <ol>
+                <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">GitHub 토큰 만들기 ↗</a>를 엽니다.</li>
+                <li>Repository access에서 <strong>Only select repositories</strong>와 <strong>dhportfolio</strong>를 선택합니다.</li>
+                <li>Permissions → Repository permissions → <strong>Contents: Read and write</strong>만 설정해 생성합니다.</li>
+              </ol>
+            </details>
+          </div>
+          <div className="publish-controls">
+            <label htmlFor="github-token">GitHub 저장소 토큰<input id="github-token" type="password" value={githubToken} onChange={(event) => setGithubToken(event.target.value)} autoComplete="off" spellCheck="false" placeholder="github_pat_…" /></label>
+            <button className="publish-primary" type="button" onClick={publish} disabled={publishBusy || !hasLocalChanges}>{publishBusy ? "게시하는 중…" : "GitHub에 게시하기 ↑"}</button>
+            {publishMessage && <p className="publish-message" role="status">{publishMessage}</p>}
+          </div>
+          <div className="publish-backup">
+            <span>백업 및 복원</span>
+            <div className="publish-actions">
+              <button type="button" onClick={exportProjects} disabled={!projects.length}>백업 파일 받기 ↓</button>
+              <label className="import-button">백업 불러오기<input type="file" accept="application/json,.json" onChange={importData} /></label>
+            </div>
           </div>
         </div>
       </section>

@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import ProjectDetail from "./pages/ProjectDetail";
 import SectionLink from "./components/SectionLink";
 import ProjectManager from "./components/ProjectManager";
+import MobileNav from "./components/MobileNav";
 import { profile } from "./data/profile";
 import { useProjects } from "./context/ProjectsContext";
 
@@ -66,6 +67,7 @@ export default function App() {
       </main>
       <ProjectManager />
       <Footer />
+      <MobileNav />
     </>
   );
 }
