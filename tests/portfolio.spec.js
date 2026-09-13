@@ -30,16 +30,18 @@ test("빈 포트폴리오, 한국어 화면과 연락처가 정확히 표시된�
   expect(errors).toEqual([]);
 });
 
-test("작품 관리는 토큰 입력 없이 관리자 이메일 로그인을 사용한다", async ({ page }) => {
+test("작품 관리는 이메일 요청과 토큰 없이 비밀번호 로그인을 사용한다", async ({ page }) => {
   await page.goto("./");
   await page.getByRole("button", { name: "작품 업로드 ＋" }).click();
   const dialog = page.getByRole("dialog", { name: "작품 관리" });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("heading", { name: "이메일로 관리자 로그인" })).toBeVisible();
-  await expect(dialog.getByText("gimd50236@gmail.com")).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "로그인 링크 받기 →" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "비밀번호로 관리자 로그인" })).toBeVisible();
+  await expect(dialog.getByLabel("아이디")).toHaveAttribute("placeholder", "donghyuk011");
+  await expect(dialog.getByText("힌트: 깃허브 아이디")).toBeVisible();
+  await expect(dialog.getByLabel("비밀번호")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "관리자 로그인 →" })).toBeDisabled();
+  await expect(dialog.getByText(/로그인 링크 받기/)).toHaveCount(0);
   await expect(dialog.getByText(/GitHub 저장소 토큰/)).toHaveCount(0);
-  await expect(dialog.locator("input[type=password]")).toHaveCount(0);
 });
 
 test("모바일 메뉴와 관리자 로그인 화면이 작은 화면에 맞게 표시된다", async ({ page }) => {
@@ -49,6 +51,6 @@ test("모바일 메뉴와 관리자 로그인 화면이 작은 화면에 맞게 
   await page.getByRole("button", { name: "메뉴 +" }).click();
   await expect(page.getByRole("button", { name: "작품 관리 ＋" })).toBeVisible();
   await page.getByRole("button", { name: "작품 관리 ＋" }).click();
-  await expect(page.getByRole("heading", { name: "이메일로 관리자 로그인" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "비밀번호로 관리자 로그인" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

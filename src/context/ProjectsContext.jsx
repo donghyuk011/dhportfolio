@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { extensionFor, rowsToProjects } from "../lib/projectCloud";
-import { ADMIN_EMAIL, supabase } from "../lib/supabase";
+import { ADMIN_EMAIL, ADMIN_LOGIN_ID, supabase } from "../lib/supabase";
 
 const ProjectsContext = createContext(null);
 const DATABASE_NAME = "donghyuk-portfolio";
@@ -170,17 +170,23 @@ export function ProjectsProvider({ children }) {
     if (!isAdmin) throw new Error("관리자 로그인이 필요합니다.");
   }
 
-  async function signIn() {
-    const emailRedirectTo = `${window.location.origin}${window.location.pathname}`;
-    const { error } = await supabase.auth.signInWithOtp({
+  async function signIn(loginId, password) {
+    if (loginId.trim() !== ADMIN_LOGIN_ID) throw new Error("아이디 또는 비밀번호를 확인해 주세요.");
+    const { error } = await supabase.auth.signInWithPassword({
       email: ADMIN_EMAIL,
-      options: { emailRedirectTo, shouldCreateUser: true },
+      password,
     });
     if (error) throw error;
   }
 
   async function signOut() {
     const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  }
+
+  async function updatePassword(password) {
+    assertAdmin();
+    const { error } = await supabase.auth.updateUser({ password });
     if (error) throw error;
   }
 
@@ -284,6 +290,7 @@ export function ProjectsProvider({ children }) {
     closeManager: () => setManagerOpen(false),
     signIn,
     signOut,
+    updatePassword,
     addProject,
     removeProject,
     replaceProjects,

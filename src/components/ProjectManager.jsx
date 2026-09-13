@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useProjects } from "../context/ProjectsContext";
 import { assetUrl } from "../data/projects";
-import { ADMIN_EMAIL } from "../lib/supabase";
+import { ADMIN_EMAIL, ADMIN_LOGIN_ID } from "../lib/supabase";
 
 const initialValues = {
   title: "",
@@ -30,6 +30,7 @@ export default function ProjectManager() {
     closeManager,
     signIn,
     signOut,
+    updatePassword,
     addProject,
     removeProject,
     replaceProjects,
@@ -40,6 +41,9 @@ export default function ProjectManager() {
   const [cover, setCover] = useState(null);
   const [gallery, setGallery] = useState([]);
   const [preview, setPreview] = useState("");
+  const [loginId, setLoginId] = useState("");
+  const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const panelRef = useRef(null);
@@ -70,14 +74,17 @@ export default function ProjectManager() {
     setValues((current) => ({ ...current, [event.target.name]: event.target.value }));
   }
 
-  async function requestLogin() {
+  async function login() {
     setBusy(true);
     setMessage("");
     try {
-      await signIn();
-      setMessage(`${ADMIN_EMAIL}로 로그인 링크를 보냈습니다. 메일의 링크를 열어주세요.`);
+      await signIn(loginId, password);
+      setLoginId("");
+      setPassword("");
     } catch (error) {
-      setMessage(error.message || "로그인 링크를 보내지 못했습니다.");
+      setMessage(error.message?.includes("Invalid login credentials")
+        ? "아이디 또는 비밀번호를 확인해 주세요."
+        : (error.message || "로그인하지 못했습니다."));
     } finally {
       setBusy(false);
     }
@@ -98,6 +105,21 @@ export default function ProjectManager() {
       setMessage("작품을 게시했습니다. 모든 기기에 바로 반영됩니다.");
     } catch (error) {
       setMessage(error.message || "게시하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changePassword(event) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage("");
+    try {
+      await updatePassword(newPassword);
+      setNewPassword("");
+      setMessage("관리자 비밀번호를 변경했습니다.");
+    } catch (error) {
+      setMessage(error.message || "비밀번호를 변경하지 못했습니다.");
     } finally {
       setBusy(false);
     }
@@ -161,25 +183,36 @@ export default function ProjectManager() {
         ) : !isAdmin ? (
           <div className="manager-auth">
             <span className="publish-state">관리자 전용</span>
-            <h3>이메일로 관리자 로그인</h3>
-            <p>작품을 올릴 때만 로그인하면 됩니다. 비밀번호나 GitHub 토큰은 필요하지 않습니다.</p>
-            <div className="manager-auth-email"><span>관리자 이메일</span><strong>{ADMIN_EMAIL}</strong></div>
+            <h3>비밀번호로 관리자 로그인</h3>
+            <p>메일을 보내지 않고 바로 로그인합니다. 이 기기에서는 로그인 상태가 계속 유지됩니다.</p>
+            {!session && <div className="manager-login-fields">
+              <label htmlFor="manager-login-id">아이디<input id="manager-login-id" value={loginId} onChange={(event) => setLoginId(event.target.value)} autoComplete="username" placeholder={ADMIN_LOGIN_ID} /><small>힌트: 깃허브 아이디</small></label>
+              <label htmlFor="manager-password">비밀번호<input id="manager-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" onKeyDown={(event) => { if (event.key === "Enter" && loginId && password) login(); }} /></label>
+            </div>}
             {session && <p className="manager-auth-warning">현재 로그인한 계정은 작품을 수정할 권한이 없습니다.</p>}
             {message && <p className="manager-message" role="status">{message}</p>}
             <div className="manager-auth-actions">
               {session ? (
                 <button className="publish-primary" type="button" onClick={signOut} disabled={busy}>다른 계정으로 로그인</button>
               ) : (
-                <button className="publish-primary" type="button" onClick={requestLogin} disabled={busy}>{busy ? "보내는 중…" : "로그인 링크 받기 →"}</button>
+                <button className="publish-primary" type="button" onClick={login} disabled={busy || !loginId || !password}>{busy ? "로그인 중…" : "관리자 로그인 →"}</button>
               )}
             </div>
           </div>
         ) : (
           <>
             <div className="manager-session">
-              <p><strong>{ADMIN_EMAIL}</strong> 계정으로 로그인했습니다. 새 작품은 모든 기기에 바로 게시됩니다.</p>
+              <p><strong>{ADMIN_LOGIN_ID}</strong> 계정으로 로그인했습니다. 새 작품은 모든 기기에 바로 게시됩니다.</p>
               <button type="button" onClick={signOut}>로그아웃</button>
             </div>
+
+            <details className="manager-password-settings">
+              <summary>관리자 비밀번호 변경</summary>
+              <form onSubmit={changePassword}>
+                <label htmlFor="new-manager-password">새 비밀번호<input id="new-manager-password" type="password" minLength="8" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" /></label>
+                <button type="submit" disabled={busy || newPassword.length < 8}>변경하기</button>
+              </form>
+            </details>
 
             {localDrafts.length > 0 && (
               <div className="manager-migrate">

@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 export const ADMIN_EMAIL = "gimd50236@gmail.com";
+export const ADMIN_LOGIN_ID = "donghyuk011";
 
 export const supabase = createClient(
   "https://yjkzhaiuomzrzaffycnl.supabase.co",
