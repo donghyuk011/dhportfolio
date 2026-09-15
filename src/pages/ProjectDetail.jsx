@@ -28,7 +28,7 @@ export default function ProjectDetail() {
           <Arrow direction="left" /> 모든 작품
         </SectionLink>
         <p className="eyebrow">
-          {project.category} / {project.year}
+          CASE TRACE / {project.category} / {project.year}
         </p>
         <h1>
           {project.title}

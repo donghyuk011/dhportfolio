@@ -38,7 +38,10 @@ export default function Navbar() {
       >
         {profile.name}
         <span className="wordmark-mark" aria-hidden="true">
-          ✳
+          <i />
+        </span>
+        <span className="wordmark-system" aria-hidden="true">
+          SIGNAL TRACE
         </span>
       </SectionLink>
       <button

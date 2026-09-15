@@ -7,7 +7,9 @@ export default function Contact() {
     <section id="contact" className="section contact-section">
       <SectionLabel number="04">연락처</SectionLabel>
       <Reveal className="contact-content">
-        <p>연락 정보</p>
+        <p className="section-status contact-status">
+          <i aria-hidden="true" /> OPEN CHANNEL / 연락 가능
+        </p>
         <h2>
           {profile.fullName}
         </h2>

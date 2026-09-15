@@ -6,6 +6,7 @@ export default function Experience() {
     <section id="experience" className="section experience-section">
       <SectionLabel number="03">경험 / 기술</SectionLabel>
       <Reveal className="experience-content">
+        <p className="section-status">SYSTEM HISTORY / CAPABILITY</p>
         <h2>
           원리를 이해하고,
           <br />

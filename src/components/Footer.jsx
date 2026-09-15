@@ -6,8 +6,8 @@ export default function Footer() {
       <span>
         {profile.name} © {new Date().getFullYear()}
       </span>
-      <span className="footer-note">
-        섬세하게 디자인하고, 꼼꼼하게 만들었습니다.
+      <span className="footer-note system-status">
+        <i aria-hidden="true" /> SIGNAL TRACE / ONLINE
       </span>
       <SectionLink section="top">맨 위로 ↑</SectionLink>
     </footer>

@@ -6,6 +6,7 @@ export default function About() {
     <section id="about" className="section about-section">
       <SectionLabel number="01">소개</SectionLabel>
       <Reveal className="about-content">
+        <p className="section-status">IDENTITY / PROFILE</p>
         <h2>{profile.introduction}</h2>
         <div className="about-bottom">
           <p>{profile.about}</p>

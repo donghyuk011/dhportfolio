@@ -9,6 +9,9 @@ export default function Projects() {
       <div className="works-intro">
         <SectionLabel number="02">작품</SectionLabel>
         <div>
+          <p className="section-status">
+            CAPTURED WORK / {String(projects.length).padStart(2, "0")} SIGNALS
+          </p>
           <h2>
             생각을 형태로<span>.</span>
           </h2>

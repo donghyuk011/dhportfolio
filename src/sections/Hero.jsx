@@ -13,6 +13,12 @@ export default function Hero() {
       : years[0] || "작품 업로드 전";
   return (
     <section id="top" className="hero" aria-labelledby="hero-title">
+      <div className="hero-system" aria-label="사이트 콘셉트와 상태">
+        <span>DH / SIGNAL TRACE</span>
+        <span className="system-status">
+          <i aria-hidden="true" /> SYSTEM ONLINE
+        </span>
+      </div>
       <div className="hero-intro">
         <p>{profile.title}</p>
         <p>
@@ -27,19 +33,28 @@ export default function Hero() {
           포트폴리오<span className="title-period">.</span>
         </h1>
         <span className="hero-years">
-          {yearRange}
+          ARCHIVE / {yearRange}
           <br />
-          <span>디자인 & 개발</span>
+          <span>SECURITY · DESIGN · DEV</span>
         </span>
       </div>
-      <PortfolioCarousel />
+      <div className="hero-carousel-shell">
+        <div className="signal-field" aria-hidden="true">
+          <span className="signal-orbit signal-orbit-one" />
+          <span className="signal-orbit signal-orbit-two" />
+          <span className="signal-node signal-node-one" />
+          <span className="signal-node signal-node-two" />
+          <span className="signal-node signal-node-three" />
+        </div>
+        <PortfolioCarousel />
+      </div>
       <SectionNavigation />
       <div className="hero-bottom">
-        <span>생각을 실제 경험으로 만듭니다.</span>
+        <span>관찰하고, 분석하고, 직접 검증합니다.</span>
         <SectionLink section="work">
           작품 둘러보기 <Arrow direction="down" />
         </SectionLink>
-        <span>스크롤해서 살펴보기</span>
+        <span className="trace-readout">TRACE 00 / 스크롤해서 살펴보기</span>
       </div>
     </section>
   );
