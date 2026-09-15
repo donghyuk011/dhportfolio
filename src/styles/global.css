@@ -1420,7 +1420,13 @@ section[id] {
   font-family: var(--mono);
 }
 .project-cover {
+  width: min(72%, 920px);
+  margin-left: auto;
   border: 1px solid #ffffff08;
+}
+.project-info {
+  width: min(72%, 920px);
+  margin-left: auto;
 }
 .project-cover::before,
 .project-cover::after {
@@ -1589,6 +1595,10 @@ section[id] {
   }
   .project-info dd {
     max-width: 150px;
+  }
+  .project-cover,
+  .project-info {
+    width: 86%;
   }
   .contact-links {
     flex-wrap: wrap;
@@ -1829,6 +1839,7 @@ section[id] {
     font-size: 11px;
   }
   .project-cover {
+    width: 100%;
     aspect-ratio: 10 / 7;
   }
   .view-project {
@@ -1844,6 +1855,7 @@ section[id] {
     height: 14px;
   }
   .project-info {
+    width: 100%;
     display: block;
     margin-top: 20px;
   }
