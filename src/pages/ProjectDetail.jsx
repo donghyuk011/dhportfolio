@@ -49,6 +49,13 @@ export default function ProjectDetail() {
             <dd>{project.tools.join(" / ")}</dd>
           </div>
         </dl>
+        {project.pdf?.url && (
+          <a className="detail-pdf-link" href={project.pdf.url} target="_blank" rel="noreferrer">
+            <span>PDF</span>
+            <strong>{project.pdf.name || `${project.title}.pdf`}</strong>
+            <span>새 창에서 보기 ↗</span>
+          </a>
+        )}
       </div>
       <div className="detail-cover" style={{ background: project.color }}>
         <img

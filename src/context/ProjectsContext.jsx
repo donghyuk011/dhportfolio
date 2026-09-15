@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { extensionFor, rowsToProjects } from "../lib/projectCloud";
+import { extensionFor, rowsToProjects, validatePdfFile } from "../lib/projectCloud";
 import { ADMIN_EMAIL, ADMIN_LOGIN_ID, supabase } from "../lib/supabase";
 
 const ProjectsContext = createContext(null);
@@ -85,14 +85,32 @@ async function uploadDataUrl(dataUrl, pathPrefix) {
   return supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
-async function prepareProjectForCloud(project, order) {
+async function uploadPdf(file, projectId) {
+  if (!file) return null;
+  validatePdfFile(file);
+  const path = `${projectId}/portfolio.pdf`;
+  const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, {
+    cacheControl: "3600",
+    contentType: "application/pdf",
+    upsert: true,
+  });
+  if (error) throw error;
+  return {
+    url: supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl,
+    name: file.name,
+    size: file.size,
+  };
+}
+
+async function prepareProjectForCloud(project, order, pdfFile = null) {
   const id = project.id || crypto.randomUUID();
   const thumbnail = await uploadDataUrl(project.thumbnail, `${id}/cover`);
   const images = await Promise.all((project.images || []).map(async (image, index) => ({
     ...image,
     src: await uploadDataUrl(image.src, `${id}/gallery-${index + 1}`),
   })));
-  const content = { ...project, id, thumbnail, images };
+  const pdf = pdfFile ? await uploadPdf(pdfFile, id) : (project.pdf || null);
+  const content = { ...project, id, thumbnail, images, pdf };
   return { id, content, sort_order: order };
 }
 
@@ -190,16 +208,16 @@ export function ProjectsProvider({ children }) {
     if (error) throw error;
   }
 
-  async function saveCloudProject(project, order = projects.length) {
+  async function saveCloudProject(project, order = projects.length, pdfFile = null) {
     assertAdmin();
-    const row = await prepareProjectForCloud(project, order);
+    const row = await prepareProjectForCloud(project, order, pdfFile);
     const { error } = await supabase.from("projects").upsert(row);
     if (error) throw error;
     await loadProjects();
     return row.content;
   }
 
-  async function addProject(values, coverFile, galleryFiles) {
+  async function addProject(values, coverFile, galleryFiles, pdfFile = null) {
     assertAdmin();
     const thumbnail = await optimizeImage(coverFile);
     const gallery = await Promise.all(galleryFiles.slice(0, 6).map(async (file, index) => ({
@@ -226,7 +244,14 @@ export function ProjectsProvider({ children }) {
       solution: values.solution.trim(),
       result: values.result.trim(),
       images: gallery,
-    });
+    }, projects.length, pdfFile);
+  }
+
+  async function attachProjectPdf(id, file) {
+    assertAdmin();
+    const index = projects.findIndex((project) => project.id === id);
+    if (index < 0) throw new Error("작품을 찾을 수 없습니다.");
+    return saveCloudProject(projects[index], index, file);
   }
 
   async function removeProject(id) {
@@ -292,6 +317,7 @@ export function ProjectsProvider({ children }) {
     signOut,
     updatePassword,
     addProject,
+    attachProjectPdf,
     removeProject,
     replaceProjects,
     migrateLocalDrafts,

@@ -32,6 +32,7 @@ export default function ProjectManager() {
     signOut,
     updatePassword,
     addProject,
+    attachProjectPdf,
     removeProject,
     replaceProjects,
     migrateLocalDrafts,
@@ -40,6 +41,7 @@ export default function ProjectManager() {
   const [values, setValues] = useState(initialValues);
   const [cover, setCover] = useState(null);
   const [gallery, setGallery] = useState([]);
+  const [pdf, setPdf] = useState(null);
   const [preview, setPreview] = useState("");
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
@@ -97,10 +99,11 @@ export default function ProjectManager() {
     if (!cover) { setMessage("대표 이미지를 선택해 주세요."); return; }
     setBusy(true);
     try {
-      await addProject(values, cover, gallery);
+      await addProject(values, cover, gallery, pdf);
       setValues({ ...initialValues, year: String(new Date().getFullYear()) });
       setCover(null);
       setGallery([]);
+      setPdf(null);
       form.reset();
       setMessage("작품을 게시했습니다. 모든 기기에 바로 반영됩니다.");
     } catch (error) {
@@ -134,6 +137,20 @@ export default function ProjectManager() {
       setMessage("작품을 삭제했습니다.");
     } catch (error) {
       setMessage(error.message || "작품을 삭제하지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function attachPdf(project, file) {
+    if (!file) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await attachProjectPdf(project.id, file);
+      setMessage(`“${project.title}” 작품에 PDF를 ${project.pdf ? "교체" : "추가"}했습니다.`);
+    } catch (error) {
+      setMessage(error.message || "PDF를 업로드하지 못했습니다.");
     } finally {
       setBusy(false);
     }
@@ -227,8 +244,11 @@ export default function ProjectManager() {
                 {projects.map((project) => (
                   <article className="manager-project" key={project.id}>
                     <img src={assetUrl(project.thumbnail)} alt="" />
-                    <div><strong>{project.title}</strong><span>{project.category} · {project.year}</span></div>
-                    <button type="button" disabled={busy} onClick={() => deleteProject(project)}>삭제</button>
+                    <div><strong>{project.title}</strong><span>{project.category} · {project.year}{project.pdf ? " · PDF 있음" : ""}</span></div>
+                    <div className="manager-project-actions">
+                      <label className="manager-pdf-button">{project.pdf ? "PDF 교체" : "PDF 추가"}<input type="file" accept="application/pdf,.pdf" disabled={busy} onChange={(event) => { attachPdf(project, event.target.files?.[0]); event.target.value = ""; }} /></label>
+                      <button type="button" disabled={busy} onClick={() => deleteProject(project)}>삭제</button>
+                    </div>
                   </article>
                 ))}
               </div>
@@ -262,6 +282,7 @@ export default function ProjectManager() {
                 <label>결과<textarea name="result" value={values.result} onChange={change} rows="3" /></label>
               </details>
               <label className="gallery-input">추가 이미지 <span>선택 · 최대 6장</span><input type="file" accept="image/*" multiple onChange={(event) => setGallery(Array.from(event.target.files || []).slice(0, 6))} /><small>{gallery.length > 0 ? `${gallery.length}장 선택됨` : "상세 페이지의 갤러리에 표시됩니다."}</small></label>
+              <label className="gallery-input pdf-input">PDF 첨부 <span>선택 · 최대 25MB</span><input type="file" accept="application/pdf,.pdf" onChange={(event) => setPdf(event.target.files?.[0] || null)} /><small>{pdf ? `${pdf.name} 선택됨` : "작품 상세 페이지에서 바로 열 수 있습니다."}</small></label>
               {message && <p className="manager-message" role="status">{message}</p>}
               <button className="save-project" type="submit" disabled={busy}>{busy ? "클라우드에 게시하고 있습니다…" : "모든 기기에 게시하기 ↑"}</button>
             </form>

@@ -54,3 +54,37 @@ test("모바일 메뉴와 관리자 로그인 화면이 작은 화면에 맞게 
   await expect(page.getByRole("heading", { name: "비밀번호로 관리자 로그인" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+test("PDF가 첨부된 작품은 상세 페이지에서 새 창으로 열 수 있다", async ({ page }) => {
+  await page.unroute("https://yjkzhaiuomzrzaffycnl.supabase.co/rest/v1/projects**");
+  await page.route("https://yjkzhaiuomzrzaffycnl.supabase.co/rest/v1/projects**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([{
+        id: "00000000-0000-0000-0000-000000000123",
+        sort_order: 0,
+        created_at: "2026-09-15T00:00:00Z",
+        content: {
+          slug: "pdf-project",
+          title: "PDF 작품",
+          category: "개인 프로젝트",
+          year: "2026",
+          role: "디자이너",
+          timeline: "1주",
+          tools: [],
+          thumbnail: "images/projects/common.svg",
+          color: "#ecece7",
+          description: "PDF 첨부 기능을 확인하는 작품입니다.",
+          images: [],
+          pdf: { url: "https://example.com/portfolio.pdf", name: "동혁-포트폴리오.pdf", size: 1024 },
+        },
+      }]),
+    });
+  });
+  await page.goto("./#/projects/pdf-project");
+  const pdfLink = page.getByRole("link", { name: /동혁-포트폴리오\.pdf/ });
+  await expect(pdfLink).toBeVisible();
+  await expect(pdfLink).toHaveAttribute("href", "https://example.com/portfolio.pdf");
+  await expect(pdfLink).toHaveAttribute("target", "_blank");
+});

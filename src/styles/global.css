@@ -663,6 +663,10 @@ section[id] {
   margin: 0;
   max-width: 220px;
 }
+.detail-pdf-link { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center; max-width: 660px; margin-top: 32px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 5px; transition: border-color .2s ease, background .2s ease; }
+.detail-pdf-link:hover { border-color: #777771; background: #292927; }
+.detail-pdf-link > span { color: var(--muted); font-size: 11px; }
+.detail-pdf-link strong { overflow: hidden; font-size: 14px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .concept-note {
   font-size: 12px;
   color: var(--muted);
@@ -1076,6 +1080,9 @@ section[id] {
 .manager-project strong { font-size: 15px; }
 .manager-project span { margin-top: 3px; color: var(--muted); font-size: 12px; }
 .manager-project button { color: #c9a4a0; font-size: 13px; }
+.manager-project-actions { display: flex; align-items: center; gap: 12px; }
+.manager-pdf-button { color: #d6d6cf; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.manager-pdf-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .project-form { display: flex; flex-direction: column; gap: 22px; padding-top: 42px; border-top: 1px solid var(--line); }
 .project-form label { display: flex; flex-direction: column; gap: 8px; color: #d5d5d0; font-size: 14px; }
 .project-form label b { color: #a8a8a2; font-size: 11px; font-weight: 400; }
@@ -1105,6 +1112,7 @@ section[id] {
 .more-fields[open] summary span { transform: rotate(45deg); }
 .more-fields label { margin: 0 0 18px; }
 .gallery-input input { padding: 12px; border: 1px dashed #62625e; border-radius: 4px; color: var(--muted); }
+.pdf-input input { border-color: #777062; background: #29271f; }
 .manager-message { color: #d7d7ce; font-size: 14px; }
 .save-project { min-height: 52px; border-radius: 4px; background: #f1f1ec; color: #1d1d1c; font-weight: 600; }
 .save-project:hover { background: #d8d8d1; }
@@ -1616,6 +1624,8 @@ section[id] {
     font-size: 13px;
     max-width: none;
   }
+  .detail-pdf-link { grid-template-columns: auto minmax(0, 1fr); gap: 8px 14px; padding: 16px; }
+  .detail-pdf-link > span:last-child { grid-column: 2; }
   .detail-cover {
     margin: 0 var(--gutter);
     aspect-ratio: 10 / 7;
@@ -1712,8 +1722,9 @@ section[id] {
   .manager-backup-box { grid-template-columns: 1fr; }
   .manager-auth { padding: 25px 22px; }
   .manager-auth-actions .publish-primary { width: 100%; min-width: 0; }
-  .manager-project { grid-template-columns: 62px 1fr auto; }
+  .manager-project { grid-template-columns: 62px 1fr; }
   .manager-project img { width: 62px; height: 46px; }
+  .manager-project-actions { grid-column: 2; justify-content: flex-start; }
   .contact-links { align-items: flex-start; }
   .contact-links { flex-direction: column; }
   .contact-links > .contact-methods { align-items: flex-start; }
